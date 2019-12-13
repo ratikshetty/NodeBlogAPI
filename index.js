@@ -1,34 +1,77 @@
 const express = require('express');
 const app = express();
+const jwt = require('jsonwebtoken');
 
 app.use(express.json());
 
-let users = [
-    {
-        id: 1,
-        name: 'Ratik'
+// Users Api
+
+const sqlite3 = require('sqlite3').verbose();
+
+const dbUser = new sqlite3.Database('./db/userDB.db', sqlite3.OPEN_READWRITE, (err) => {
+    if (err) {
+        console.error(err.message);
     }
-]
+    console.log('Connected to the User database.');
+})
 
-let id = 2
 
-app.get('/users', (req, res) => {
-    return res.send(users)
+app.get('/user', (req, res) => {
+
+    let username = req.headers.username
+    let password = req.headers.password
+    let dbPassword
+    
+    let sql = `select * from user 
+                where name=? and isDeleted=0`;
+
+    dbUser.all(sql, [username], (err, rows) =>{
+        if(err){
+            res.send(err)
+        }
+        else{
+            user = rows[0]
+            if(user.password === password){
+                jwt.sign({user}, 'ratikssh', (err, token) =>{
+                    if(err){
+                        return res.send(err)
+                    }
+                    else{
+                        return res.status(200).json({token})
+                    }
+                })
+            }
+            else{
+                return res.status(401).send('Invalid credentials')
+            }
+
+        }
+    })
+
+    
 })
 
 app.post('/users', (req, res) => {
 
-    if (!req.body.name) return res.status(400).send('name field missing');
+    if (!req.body.username) return res.status(400).send('username field missing');
+    if (!req.body.password) return res.status(400).send('password field missing');
+    if (!req.body.email) return res.status(400).send('email field missing');
 
-    const user = {
-        id: id,
-        name: req.body.name
-    }
-    id++
+    sql = `insert into user (emailid, name, password, createdDate, modifiedDate) 
+    values (?,?,?,?,?)`
 
-    users.push(user)
+    let curDate = new Date()
 
-    return res.status(201).send(user)
+    dbUser.run(sql, [req.body.email,req.body.username, req.body.password, curDate.toString(), curDate.toString()], (err)=>{
+        if(err){
+             return res.send(err)
+        }
+        else{
+            return res.status(201)
+        }
+    })
+
+    
 })
 
 app.put('/users/:id', (req, res) => {
@@ -66,8 +109,6 @@ app.delete('/users/:id', (req, res) => {
 
 // Article API's
 
-const sqlite3 = require('sqlite3').verbose();
-
 const dbArticle = new sqlite3.Database('./db/articleDB.db', sqlite3.OPEN_READWRITE, (err) => {
     if (err) {
         console.error(err.message);
@@ -77,8 +118,6 @@ const dbArticle = new sqlite3.Database('./db/articleDB.db', sqlite3.OPEN_READWRI
 
 
 app.get('/articles', (req, res) => {
-
-    let article = []
 
     let sql = `SELECT * FROM article where isDeleted = 0 ORDER BY articleId DESC`
 
@@ -95,30 +134,57 @@ app.get('/articles', (req, res) => {
 
 let author = 'test_ ratik'
 
-app.post('/articles', (req, res) => {
+app.post('/articles', verify, (req, res) => {
 
-    if(!req.body.content){
-        return res.status(400).send('Article content is missing')
-    }
+    jwt.verify(req.token, 'ratikssh', (err, authData)=>{
 
-    if(!req.body.title){
-        return res.status(400).send('Article Title is missing')
-    }
-
-    let curDate = new Date()
-
-    let sql = `insert into article (content, title, author, url, createdDate, modifiedDate) values (?,?,?,?,?,?)`
-
-    dbArticle.run(sql, [req.body.content, req.body.title, author, 'test/url', curDate.toString(), curDate.toString()], (err) => {
         if(err){
-            console.log(err);
-            return res.status(400).send(err)
+            return res.sendStatus(403)
+        }
+        else{
+
+            if(!req.body.content){
+                return res.status(400).send('Article content is missing')
+            }
+        
+            if(!req.body.title){
+                return res.status(400).send('Article Title is missing')
+            }
+        
+            let curDate = new Date()
+        
+            let sql = `insert into article (content, title, author, url, createdDate, modifiedDate) values (?,?,?,?,?,?)`
+        
+            dbArticle.run(sql, [req.body.content, req.body.title, author, 'test/url', curDate.toString(), curDate.toString()], (err) => {
+                if(err){
+                    console.log(err);
+                    return res.status(400).send(err)
+                }
+            })
+        
+            return res.status(201).send('created')
+
         }
     })
 
-    return res.status(201).send('created')
+    
 
 })
+
+function verify(req, res, next){
+
+    let auth = req.headers.authorization
+
+    if(!auth){
+        return res.sendStatus(401)
+    }
+    auth = auth.split(' ')
+    let token = auth[1]
+    console.log(token)
+
+    req.token = token
+    next()
+}
 
 app.put('/articles', (req, res) => {
 
