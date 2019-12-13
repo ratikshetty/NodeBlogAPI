@@ -74,38 +74,38 @@ app.post('/users', (req, res) => {
     
 })
 
-app.put('/users/:id', (req, res) => {
+// app.put('/users/:id', (req, res) => {
 
-    let user = users.find(ele => {
-        return ele.id === parseInt(req.params.id)
-    })
+//     let user = users.find(ele => {
+//         return ele.id === parseInt(req.params.id)
+//     })
 
-    if (!user) return res.status(400).send('No such user Id available!!');
+//     if (!user) return res.status(400).send('No such user Id available!!');
 
-    if (!req.body.name) return res.status(400).send('name field missing');
+//     if (!req.body.name) return res.status(400).send('name field missing');
 
-    user.name = req.body.name
+//     user.name = req.body.name
 
-    return res.status(200).send(user)
+//     return res.status(200).send(user)
 
-})
+// })
 
-app.delete('/users/:id', (req, res) => {
+// app.delete('/users/:id', (req, res) => {
 
-    let user = users.find((ele) => {
-        return ele.id === parseInt(req.params.id)
-    })
+//     let user = users.find((ele) => {
+//         return ele.id === parseInt(req.params.id)
+//     })
 
-    if (!user) return res.status(400).send('No such user Id available!!');
+//     if (!user) return res.status(400).send('No such user Id available!!');
 
-    let index = users.indexOf(user)
+//     let index = users.indexOf(user)
 
-    console.log(index)
+//     console.log(index)
 
-    users.splice(index, 1)
+//     users.splice(index, 1)
 
-    return res.status(200).send(user)
-})
+//     return res.status(200).send(user)
+// })
 
 // Article API's
 
@@ -132,7 +132,6 @@ app.get('/articles', (req, res) => {
 
 });
 
-let author = 'test_ ratik'
 
 app.post('/articles', verify, (req, res) => {
 
@@ -155,7 +154,7 @@ app.post('/articles', verify, (req, res) => {
         
             let sql = `insert into article (content, title, author, url, createdDate, modifiedDate) values (?,?,?,?,?,?)`
         
-            dbArticle.run(sql, [req.body.content, req.body.title, author, 'test/url', curDate.toString(), curDate.toString()], (err) => {
+            dbArticle.run(sql, [req.body.content, req.body.title, authData.user.name, 'test/url', curDate.toString(), curDate.toString()], (err) => {
                 if(err){
                     console.log(err);
                     return res.status(400).send(err)
@@ -186,52 +185,72 @@ function verify(req, res, next){
     next()
 }
 
-app.put('/articles', (req, res) => {
+app.put('/articles', verify, (req, res) => {
 
-    if(!req.body.content){
-        return res.status(400).send('Article content is missing')
-    }
-
-    if(!req.body.title){
-        return res.status(400).send('Article Title is missing')
-    }
-
-    let curDate = new Date()
-
-    let sql = `UPDATE article
-    set content = ?,
-    modifiedDate = ?,
-    author = ?
-    where title = ?  COLLATE NOCASE`
-
-    dbArticle.run(sql, [req.body.content, curDate.toString(), author, req.body.title], err => {
+    jwt.verify(req.token, 'ratikssh', (err, authData)=>{
         if(err){
-            return res.status(400).send(err)
+            return res.sendStatus(403)
         }
+        else{
 
+            if(!req.body.content){
+                return res.status(400).send('Article content is missing')
+            }
+        
+            if(!req.body.title){
+                return res.status(400).send('Article Title is missing')
+            }
+        
+            let curDate = new Date()
+        
+            let sql = `UPDATE article
+            set content = ?,
+            modifiedDate = ?,
+            author = ?
+            where title = ?  COLLATE NOCASE`
+        
+            dbArticle.run(sql, [req.body.content, curDate.toString(), authData.user.name, req.body.title], err => {
+                if(err){
+                    return res.status(400).send(err)
+                }
+        
+        
+            })
+        
+            return res.status(200).send('record updated')
 
+        }
     })
 
-    return res.status(200).send('record updated')
+    
 })
 
-app.delete('/articles', (req, res) => {
+app.delete('/articles', verify, (req, res) => {
 
-    if(!req.body.title){
-        return res.status(400).send('Article Title is missing')
-    }
-
-    let sql = `update article 
-                set isDeleted = 1
-                where title = ? COLLATE NOCASE`
-
-    dbArticle.run(sql, [req.body.title], err => {
+    jwt.verify(req.token, 'ratikssh', (err, authData)=>{
         if(err){
-            return res.status(400).send(err)
+            return res.sendStatus(403)
+        }
+        else{
+            if(!req.body.title){
+                return res.status(400).send('Article Title is missing')
+            }
+        
+            let sql = `update article 
+                        set isDeleted = 1
+                        where title = ? COLLATE NOCASE`
+        
+            dbArticle.run(sql, [req.body.title], err => {
+                if(err){
+                    return res.status(400).send(err)
+                }
+            })
+        
+            return res.status(200).send('deleted')
         }
     })
 
-    return res.status(200).send('deleted')
+    
 })
 
 // Comments API's
