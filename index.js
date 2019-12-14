@@ -31,7 +31,7 @@ app.get('/user', (req, res) => {
         }
         else{
             user = rows[0]
-            if(user.password === password){
+            if(user && user.password === password){
                 jwt.sign({user}, 'ratikssh', (err, token) =>{
                     if(err){
                         return res.send(err)
@@ -135,6 +135,8 @@ app.get('/articles', (req, res) => {
 
 app.post('/articles', verify, (req, res) => {
 
+    console.log('here')
+
     jwt.verify(req.token, 'ratikssh', (err, authData)=>{
 
         if(err){
@@ -179,8 +181,6 @@ function verify(req, res, next){
     }
     auth = auth.split(' ')
     let token = auth[1]
-    console.log(token)
-
     req.token = token
     next()
 }
