@@ -120,9 +120,26 @@ const dbArticle = new sqlite3.Database('./db/articleDB.db', sqlite3.OPEN_READWRI
 app.get('/articles', (req, res) => {
 
     let sql = `SELECT * FROM article where isDeleted = 0 ORDER BY articleId DESC`
+    
+
+    
 
 
     dbArticle.all(sql, [], (err, rows) => {
+        if (err) {
+            throw err;
+        }
+        res.send(rows)
+    });
+
+
+});
+
+app.get('/articles/:username', (req, res) => {
+
+    let sql= `SELECT * FROM article where isDeleted = 0 and author=? ORDER BY articleId DESC`
+    
+    dbArticle.all(sql, [req.params.username], (err, rows) => {
         if (err) {
             throw err;
         }
