@@ -51,7 +51,7 @@ app.get('/user', (req, res) => {
     
 })
 
-app.post('/users', (req, res) => {
+app.post('/user', (req, res) => {
 
     if (!req.body.username) return res.status(400).send('username field missing');
     if (!req.body.password) return res.status(400).send('password field missing');
@@ -67,7 +67,7 @@ app.post('/users', (req, res) => {
              return res.send(err)
         }
         else{
-            return res.status(201)
+            return res.sendStatus(201)
         }
     })
 
